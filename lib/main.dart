@@ -29,6 +29,7 @@ class NotesWidget extends StatefulWidget {
 class _NotesWidgetState extends State<NotesWidget> {
   final TextEditingController _controller = TextEditingController();
   List<String> _notes = [];
+  List<bool> _isImportant = [];
   int _editingIndex = -1;
 
   @override
@@ -39,12 +40,12 @@ class _NotesWidgetState extends State<NotesWidget> {
 
   void _saveNote() {
     String inputValue = _controller.text;
-
     if (inputValue.isEmpty) return;
 
     setState(() {
       if (_editingIndex == -1) {
         _notes.add(inputValue);
+        _isImportant.add(false);
       } else {
         _notes[_editingIndex] = inputValue;
         _editingIndex = -1;
@@ -64,6 +65,7 @@ class _NotesWidgetState extends State<NotesWidget> {
   void _deleteNote(int index) {
     setState(() {
       _notes.removeAt(index);
+      _isImportant.removeAt(index);
       if (_editingIndex == index) {
         _editingIndex = -1;
         _controller.clear();
@@ -71,6 +73,30 @@ class _NotesWidgetState extends State<NotesWidget> {
         _editingIndex--;
       }
     });
+  }
+
+  void _toggleImportant(int index) {
+    setState(() {
+      _isImportant[index] = !_isImportant[index];
+    });
+  }
+
+  void _openNote(int index) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Заметка'),
+          content: Text(_notes[index]),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Закрыть'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -90,20 +116,29 @@ class _NotesWidgetState extends State<NotesWidget> {
             padding: EdgeInsets.all(16.0),
             itemCount: _notes.length,
             itemBuilder: (context, index) {
-              return ListTile(
-                title: Text(_notes[index]),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.edit),
-                      onPressed: () => _editNote(index),
+              return GestureDetector(
+                onTap: () => _openNote(index),
+                onDoubleTap: () => _toggleImportant(index),
+                onLongPress: () => _editNote(index),
+                onHorizontalDragEnd: (details) {
+                  if (details.primaryVelocity! < 0) {
+                    _deleteNote(index);
+                  } else if (details.primaryVelocity! > 0) {
+                    setState(() {
+                      _isImportant[index] = false;
+                    });
+                  }
+                },
+                child: Card(
+                  color: _isImportant[index] ? Colors.yellow[100] : null,
+                  child: ListTile(
+                    title: Row(
+                      children: [
+                        if (_isImportant[index]) Text('⭐️ '),
+                        Expanded(child: Text(_notes[index])),
+                      ],
                     ),
-                    IconButton(
-                      icon: Icon(Icons.delete),
-                      onPressed: () => _deleteNote(index),
-                    ),
-                  ],
+                  ),
                 ),
               );
             },
